@@ -229,7 +229,7 @@ router.put("/me/address", async (req, res) => {
                 country: req.body.country || 'India',
                 ...(req.body.phone && { phone: req.body.phone })
             },
-            { new: true, runValidators: true }
+            { returnDocument: 'after', runValidators: true }
         ).select("-passwordHash -otp -otpExpires");
 
         if (!user) return res.status(404).send("User not found");

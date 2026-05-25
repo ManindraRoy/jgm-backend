@@ -84,7 +84,7 @@ class OrderRepository {
                 status: { $ne: 'Cancelled' } 
             },
             { $set: { isStockRestored: true } },
-            { new: true }
+            { returnDocument: 'after' }
         );
 
         if (!order) return false; 

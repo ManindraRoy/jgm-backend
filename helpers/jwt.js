@@ -36,6 +36,8 @@ function authJwt() {
             { url: /\/api\/v1\/payments\/webhook(.*)/, methods: ["POST"] },
             { url: /\/api\/v1\/payments\/checkout(.*)/, methods: ["GET", "POST"] },
             { url: /\/api\/v1\/payments\/check-status(.*)/, methods: ["GET"] },
+            "/favicon.ico",
+            { url: new RegExp(`^${api}/?$`), methods: ["GET", "OPTIONS"] },
             `${api}/users/login`,
             `${api}/users/register`,
             `${api}/users/logout`,
