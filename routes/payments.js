@@ -18,6 +18,10 @@ const PHONEPE_URL = isProd
     ? "https://api.phonepe.com/apis/pg/v1/pay"              
     : "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/pay"; 
 
+const PHONEPE_STATUS_URL = isProd
+    ? "https://api.phonepe.com/apis/pg/v1/status"
+    : "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/status";
+
 const initiatePayment = async (orderId) => {
     const order = await orderRepository.findById(orderId);
     if (!order) {
@@ -26,8 +30,16 @@ const initiatePayment = async (orderId) => {
         throw error;
     }
 
+    // Fast-return if order is already processed
+    if (order.paymentStatus === "Paid") {
+        throw new Error("Order has already been paid for");
+    }
+
     const amountInPaise = Math.round(order.totalPrice * 100);
     const merchantTransactionId = `JGM-${order._id.toString().slice(-6)}-${Date.now()}`;
+
+    // FIX #1: Persist transaction ID BEFORE invoking external API to eliminate Webhook race conditions
+    await orderRepository.update(order._id, { transactionId: merchantTransactionId });
 
     const payload = {
         merchantId: MERCHANT_ID,
@@ -52,24 +64,19 @@ const initiatePayment = async (orderId) => {
         },
     });
 
-    await orderRepository.update(order._id, { transactionId: merchantTransactionId });
-
     return response.data.data.instrumentResponse.redirectInfo.url;
 };
 
 router.post("/checkout/:orderId", async (req, res) => {
     try {
         const paymentUrl = await initiatePayment(req.params.orderId);
-        res.status(200).json({
-            success: true,
-            paymentUrl,
-        });
+        res.status(200).json({ success: true, paymentUrl });
     } catch (error) {
         console.error("PhonePe Error:", error.response?.data || error.message);
         if (error.isOrderNotFound) {
             return res.status(404).json({ success: false, message: "Order not found" });
         }
-        res.status(500).json({ success: false, message: "Payment initiation failed" });
+        res.status(500).json({ success: false, message: error.message || "Payment initiation failed" });
     }
 });
 
@@ -99,15 +106,23 @@ router.post("/webhook", async (req, res) => {
         const order = await orderRepository.findByTransactionId(responseData.data.merchantTransactionId);
         if (!order) return res.status(404).send("Order not found");
 
+        // Guard: If already processed via status check pool, don't perform actions again
+        if (order.paymentStatus === "Paid" || order.paymentStatus === "Failed") {
+            return res.status(200).send("OK");
+        }
+
         const expectedAmount = Math.round(order.totalPrice * 100);
         if (responseData.code === "PAYMENT_SUCCESS" && responseData.data.amount === expectedAmount) {
             await orderRepository.update(order._id, {
                 paymentStatus: "Paid",
                 status: "Processing",
-                transactionId: responseData.data.transactionId
+                gatewayTransactionId: responseData.data.transactionId // FIX #3: Saved distinctly to preserve query criteria lookup integrity
             });
-        } else {
-            await orderRepository.restoreStock(order._id);
+        } else if (responseData.code !== "PAYMENT_PENDING") {
+            // Defend against redundant multi-triggers mutating stock state
+            if (order.status !== "Cancelled") {
+                await orderRepository.restoreStock(order._id);
+            }
             await orderRepository.update(order._id, { paymentStatus: "Failed", status: "Cancelled" });
         }
 
@@ -117,10 +132,6 @@ router.post("/webhook", async (req, res) => {
         res.status(500).send("Webhook Processing Failed");
     }
 });
-
-const PHONEPE_STATUS_URL = isProd
-    ? "https://api.phonepe.com/apis/pg/v1/status"
-    : "https://api-preprod.phonepe.com/apis/pg-sandbox/pg/v1/status";
 
 router.get("/check-status/:orderId", async (req, res) => {
     try {
@@ -132,7 +143,7 @@ router.get("/check-status/:orderId", async (req, res) => {
         }
 
         if (!order.transactionId) {
-            await orderRepository.restoreStock(order._id);
+            if (order.status !== "Cancelled") await orderRepository.restoreStock(order._id);
             await orderRepository.update(order._id, { paymentStatus: "Failed", status: "Cancelled" });
             return res.json({ paymentStatus: "Failed", orderStatus: "Cancelled" });
         }
@@ -145,19 +156,24 @@ router.get("/check-status/:orderId", async (req, res) => {
         });
 
         const phonepeStatus = response.data.code;
-        if (phonepeStatus === "PAYMENT_SUCCESS" && response.data.data.amount === Math.round(order.totalPrice * 100)) {
+        const expectedAmount = Math.round(order.totalPrice * 100);
+
+        if (phonepeStatus === "PAYMENT_SUCCESS" && response.data.data.amount === expectedAmount) {
             const updated = await orderRepository.update(order._id, {
                 paymentStatus: "Paid",
                 status: "Processing",
-                transactionId: response.data.data.transactionId || order.transactionId
+                gatewayTransactionId: response.data.data.transactionId || null
             });
             return res.json({ paymentStatus: "Paid", orderStatus: updated.status });
         } else if (phonepeStatus === "PAYMENT_PENDING") {
             return res.json({ paymentStatus: "Pending", orderStatus: order.status });
         } else {
-            await orderRepository.restoreStock(order._id);
-            await orderRepository.update(order._id, { paymentStatus: "Failed", status: "Cancelled" });
-            return res.json({ paymentStatus: "Failed", orderStatus: "Cancelled" });
+            // FIX #2: Explicitly ensure we don't clear inventory on unvalidated API errors
+            if (order.status !== "Cancelled") {
+                await orderRepository.restoreStock(order._id);
+            }
+            const updated = await orderRepository.update(order._id, { paymentStatus: "Failed", status: "Cancelled" });
+            return res.json({ paymentStatus: "Failed", orderStatus: updated.status });
         }
     } catch (error) {
         console.error("Status Check Error:", error.message);
