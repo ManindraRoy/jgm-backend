@@ -195,4 +195,75 @@ const sendContactEmail = async (name, email, subject, message) => {
     });
 };
 
-module.exports = { sendOtpEmail, sendContactEmail };
+/**
+ * Dispatches an HTML-formatted email containing the order invoice.
+ * @param {string} userEmail - The recipient's email address.
+ * @param {Object} order - The order object.
+ * @returns {Promise<any>} A promise that resolves when the email is sent.
+ */
+const sendInvoiceEmail = async (userEmail, order) => {
+    const subject = `Your Invoice for Order #${order.id}`;
+    
+    // Create items HTML
+    const itemsHtml = order.orderItems.map(item => `
+        <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(item.product?.name || 'Product')}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.quantity}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">₹${(item.product?.price || 0).toLocaleString('en-IN')}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">₹${((item.product?.price || 0) * item.quantity).toLocaleString('en-IN')}</td>
+        </tr>
+    `).join('');
+
+    const html = `
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px;">
+            <h2 style="color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px;">JGM Industries</h2>
+            <h3>Order Receipt / Invoice</h3>
+            <div style="margin-bottom: 20px;">
+                <p style="margin: 5px 0;"><strong>Order ID:</strong> ${order.id}</p>
+                <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date(order.dateOrdered).toLocaleDateString()}</p>
+                <p style="margin: 5px 0;"><strong>Status:</strong> ${order.status}</p>
+                <p style="margin: 5px 0;"><strong>Tracking Number:</strong> ${order.trackingNumber || 'N/A'}</p>
+                <p style="margin: 5px 0;"><strong>Courier:</strong> ${order.courierName || 'N/A'}</p>
+            </div>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+                <thead>
+                    <tr style="background-color: #f8f9fa;">
+                        <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Item</th>
+                        <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Qty</th>
+                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Price</th>
+                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemsHtml}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="text-align: right; padding: 15px 10px; font-weight: bold; border-top: 2px solid #ddd;">Total Amount:</td>
+                        <td style="text-align: right; padding: 15px 10px; font-weight: bold; color: #2ecc71; border-top: 2px solid #ddd; font-size: 1.2em;">₹${(order.totalPrice || 0).toLocaleString('en-IN')}</td>
+                    </tr>
+                </tfoot>
+            </table>
+            
+            <p style="color: #7f8c8d; font-size: 0.9em; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
+                Thank you for your business!<br>
+                For any questions regarding this invoice, please contact our support team.
+            </p>
+        </div>
+    `;
+
+    if (isProduction) {
+        return sendViaBrevoAPI({ to: userEmail, subject, html });
+    }
+
+    // Local dev — use Gmail SMTP
+    return localTransporter.sendMail({
+        from: `"JGM Industries" <${getFromAddress()}>`,
+        to: userEmail,
+        subject,
+        html
+    });
+};
+
+module.exports = { sendOtpEmail, sendContactEmail, sendInvoiceEmail };

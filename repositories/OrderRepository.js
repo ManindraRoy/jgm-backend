@@ -27,7 +27,7 @@ class OrderRepository {
      */
     async findById(id) {
         return await Order.findById(id)
-            .populate("user", "name")
+            .populate("user", "name email")
             .populate("orderItems.product");
     }
 

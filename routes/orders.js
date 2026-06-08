@@ -9,6 +9,7 @@ const mongoose = require("mongoose");
 const orderRepository = require("../repositories/OrderRepository");
 const { Product } = require("../models/product"); // Still needed for stock check in route
 const { orderSchema } = require("../helpers/validator");
+const { sendInvoiceEmail } = require("../helpers/mailer");
 
 /**
  * @route   GET /api/v1/orders/
@@ -149,6 +150,32 @@ router.delete("/:id", async (req, res) => {
         res.status(200).json({ success: true, message: "Order deleted and inventory synchronized!" });
     } catch (err) {
         res.status(500).json({ success: false, error: err.message });
+    }
+});
+
+/**
+ * @route   POST /api/v1/orders/:id/email
+ */
+router.post("/:id/email", async (req, res) => {
+    try {
+        if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "Invalid Order Id" });
+        const order = await orderRepository.findById(req.params.id);
+        if (!order) return res.status(404).json({ success: false, message: "Order not found" });
+
+        if (!req.auth?.isAdmin) {
+            return res.status(403).json({ message: "Access denied. Admin only." });
+        }
+
+        const userEmail = order.user?.email || req.body.email;
+        if (!userEmail) {
+            return res.status(400).json({ message: "No email address found for this order." });
+        }
+
+        await sendInvoiceEmail(userEmail, order);
+
+        res.status(200).json({ success: true, message: "Invoice emailed successfully" });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
     }
 });
 
