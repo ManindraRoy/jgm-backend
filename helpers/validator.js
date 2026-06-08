@@ -20,7 +20,7 @@ const registerSchema = Joi.object({
     phone: Joi.string().pattern(phoneRegex).required().messages({
         'string.pattern.base': 'Phone number must be between 10 to 15 digits and can only contain numbers and a leading +.'
     }),
-    isAdmin: Joi.boolean(),
+
     street: Joi.string().allow(''),
     apartment: Joi.string().allow(''),
     zip: Joi.string().pattern(/^[0-9]+$/).allow('').messages({
@@ -29,6 +29,13 @@ const registerSchema = Joi.object({
     city: Joi.string().allow(''),
     state: Joi.string().allow(''),
     country: Joi.string().allow('')
+});
+
+/**
+ * Extended schema for admin-created users (allows isAdmin field).
+ */
+const adminRegisterSchema = registerSchema.keys({
+    isAdmin: Joi.boolean()
 });
 
 /**
@@ -107,10 +114,22 @@ const orderSchema = Joi.object({
     user: Joi.string().hex().length(24).allow(null) // Can be null for guest checkout
 });
 
+/**
+ * Schema for contact form submissions.
+ */
+const contactSchema = Joi.object({
+    name: Joi.string().min(2).max(100).required(),
+    email: Joi.string().email().required(),
+    subject: Joi.string().min(2).max(200).required(),
+    message: Joi.string().min(10).max(5000).required()
+});
+
 module.exports = {
     registerSchema,
+    adminRegisterSchema,
     updateUserSchema,
     loginSchema,
     productSchema,
-    orderSchema
+    orderSchema,
+    contactSchema
 };

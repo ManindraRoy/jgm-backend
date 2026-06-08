@@ -45,6 +45,21 @@ const getFromAddress = () => {
 };
 
 /**
+ * Escapes HTML special characters to prevent injection in email templates.
+ * @param {string} str - Untrusted user input.
+ * @returns {string} Escaped string safe for HTML context.
+ */
+const escapeHtml = (str) => {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+};
+
+/**
  * Sends an email via Brevo's HTTP API (production only).
  * Uses HTTPS on port 443 — bypasses Railway's SMTP port blocks.
  * @param {Object} options - Email options
@@ -145,15 +160,20 @@ const sendOtpEmail = async (userEmail, otpCode) => {
  * @returns {Promise<any>} A promise that resolves when the email is sent.
  */
 const sendContactEmail = async (name, email, subject, message) => {
-    const fullSubject = `JGM Contact Form: ${subject}`;
+    const safeName = escapeHtml(name);
+    const safeEmail = escapeHtml(email);
+    const safeSubject = escapeHtml(subject);
+    const safeMessage = escapeHtml(message);
+
+    const fullSubject = `JGM Contact Form: ${safeSubject}`;
     const html = `
         <h3>New Message from JGM Industries Contact Form</h3>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Subject:</strong> ${subject}</p>
+        <p><strong>Name:</strong> ${safeName}</p>
+        <p><strong>Email:</strong> ${safeEmail}</p>
+        <p><strong>Subject:</strong> ${safeSubject}</p>
         <hr/>
         <p><strong>Message:</strong></p>
-        <p>${message}</p>
+        <p>${safeMessage}</p>
     `;
 
     if (isProduction) {

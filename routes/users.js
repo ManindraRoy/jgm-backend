@@ -8,14 +8,22 @@ const express = require("express");
 const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const mongoose = require("mongoose");
 const rateLimit = require("express-rate-limit");
-const { loginSchema, registerSchema, updateUserSchema } = require("../helpers/validator");
+const { loginSchema, registerSchema, adminRegisterSchema, updateUserSchema, contactSchema } = require("../helpers/validator");
 const { sendOtpEmail, sendContactEmail } = require("../helpers/mailer");
 
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, 
     max: 10, 
     message: { message: "Too many attempts from this IP, please try again after 15 minutes" }
+});
+
+const contactLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000,
+    max: 5,
+    message: { message: "Too many contact submissions from this IP, please try again later." }
 });
 
 router.post("/register", authLimiter, async (req, res) => {
@@ -31,7 +39,7 @@ router.post("/register", authLimiter, async (req, res) => {
         return res.status(400).json({ message: "This phone number is already registered with another account." });
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = crypto.randomInt(100000, 999999).toString();
     const expiryTime = new Date(Date.now() + 10 * 60 * 1000); 
 
     if (existingUser) {
@@ -115,7 +123,7 @@ router.post("/login", authLimiter, async (req, res) => {
         const token = jwt.sign(
             { userId: user.id, isAdmin: user.isAdmin, isSuperAdmin: user.isSuperAdmin },
             secret,
-            { expiresIn: "1d" }
+            { expiresIn: "7d" }
         );
 
         // CRITICAL: Production Cross-Domain Cookie
@@ -123,7 +131,7 @@ router.post("/login", authLimiter, async (req, res) => {
             httpOnly: true,
             secure: true,        
             sameSite: 'none',    
-            maxAge: 30 * 24 * 60 * 60 * 1000 
+            maxAge: 7 * 24 * 60 * 60 * 1000 
         });
 
         res.status(200).send({
@@ -153,7 +161,7 @@ router.post("/forgot-password", authLimiter, async (req, res) => {
     const user = await User.findOne({ email: email });
     if (!user) return res.status(400).json({ message: "User with this email does not exist." });
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpCode = crypto.randomInt(100000, 999999).toString();
     const expiryTime = new Date(Date.now() + 10 * 60 * 1000); 
 
     user.otp = otpCode;
@@ -239,13 +247,16 @@ router.put("/me/address", async (req, res) => {
     }
 });
 
-router.post('/contact', async (req, res) => {
+router.post('/contact', contactLimiter, async (req, res) => {
+    const { error } = contactSchema.validate(req.body);
+    if (error) return res.status(400).json({ message: error.details[0].message });
+
     const { name, email, subject, message } = req.body;
     try {
         await sendContactEmail(name, email, subject, message);
         res.status(200).json({ success: true, message: "Message sent successfully!" });
-    } catch (error) {
-        console.error('Contact Form Error:', error);
+    } catch (err) {
+        console.error('Contact Form Error:', err);
         res.status(500).json({ success: false, message: "Failed to send message." });
     }
 });
@@ -272,6 +283,7 @@ router.get(`/`, async (req, res) => {
 router.get("/:id", async (req, res) => {
     // SECURITY: Only Super Admins can view individual user details
     if (!req.auth?.isSuperAdmin) return res.status(403).json({ message: "Access denied. Super Admin only." });
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "Invalid User Id" });
 
     const user = await User.findById(req.params.id).select("-passwordHash");
     if (!user) return res.status(500).json({ message: "The user with the given ID was not found." });
@@ -282,7 +294,7 @@ router.post("/", async (req, res) => {
     // SECURITY: Only Super Admins can create users from admin panel
     if (!req.auth?.isSuperAdmin) return res.status(403).json({ message: "Access denied. Super Admin only." });
 
-    const { error } = registerSchema.validate(req.body);
+    const { error } = adminRegisterSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
 
     // SECURITY: Prevent duplicate email & phone from admin panel
@@ -313,6 +325,7 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
     // SECURITY: Only Super Admins can edit user accounts
     if (!req.auth?.isSuperAdmin) return res.status(403).json({ message: "Access denied. Super Admin only." });
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "Invalid User Id" });
 
     const { error } = updateUserSchema.validate(req.body);
     if (error) return res.status(400).json({ message: error.details[0].message });
@@ -352,6 +365,7 @@ router.put("/:id", async (req, res) => {
 router.delete("/:id", (req, res) => {
     // SECURITY: Only Super Admins can delete user accounts
     if (!req.auth?.isSuperAdmin) return res.status(403).json({ message: "Access denied. Super Admin only." });
+    if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "Invalid User Id" });
 
     User.findByIdAndDelete(req.params.id)
         .then((user) => {

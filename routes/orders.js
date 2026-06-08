@@ -29,6 +29,7 @@ router.get(`/`, async (req, res) => {
  */
 router.get(`/:id`, async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "Invalid Order Id" });
         const order = await orderRepository.findById(req.params.id);
         if (!order) return res.status(404).json({ success: false, message: "Order not found" });
 
@@ -111,6 +112,7 @@ router.post("/", async (req, res) => {
  */
 router.put("/:id", async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "Invalid Order Id" });
         const existingOrder = await orderRepository.findById(req.params.id);
         if (!existingOrder) return res.status(404).json({ message: "Order not found!" });
 
@@ -135,6 +137,7 @@ router.put("/:id", async (req, res) => {
  */
 router.delete("/:id", async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: "Invalid Order Id" });
         const order = await orderRepository.findById(req.params.id);
         if (!order) return res.status(404).json({ success: false, message: "Order not found!" });
 
@@ -166,6 +169,7 @@ router.get(`/get/count`, async (req, res) => {
  */
 router.get(`/get/userorders/:userid`, async (req, res) => {
     try {
+        if (!mongoose.isValidObjectId(req.params.userid)) return res.status(400).json({ message: "Invalid User Id" });
         // SECURITY: Verify that the authenticated user is either an Admin or requesting their own order history
         if (!req.auth?.isAdmin && req.auth?.userId !== req.params.userid) {
             return res.status(403).json({ message: "Access denied. You can only view your own orders." });

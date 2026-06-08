@@ -14,6 +14,15 @@ const { productSchema } = require("../helpers/validator");
 
 const uploadOptions = createUploader("jgm-products");
 
+/**
+ * Escapes special regex characters in user input to prevent ReDoS attacks.
+ * @param {string} str - Raw user input.
+ * @returns {string} Escaped string safe for use in a RegExp.
+ */
+function escapeRegex(str) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /* =========================================================
    1. PRODUCT RETRIEVAL & FILTERING
 ========================================================= */
@@ -32,11 +41,11 @@ router.get(`/`, async (req, res) => {
     }
     // Support Brand Filtering: /api/v1/products?brand=JGM
     if (req.query.brand) {
-        filter.brand = { $regex: req.query.brand, $options: "i" };
+        filter.brand = { $regex: escapeRegex(req.query.brand), $options: "i" };
     }
     // Support URL search: /api/v1/products?search=oil
     if (req.query.search) {
-        filter.name = { $regex: req.query.search, $options: "i" };
+        filter.name = { $regex: escapeRegex(req.query.search), $options: "i" };
     }
 
     const page = parseInt(req.query.page) || 1;

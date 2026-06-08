@@ -161,9 +161,11 @@ router.post("/webhook", async (req, res) => {
         const credentials = `${WEBHOOK_USERNAME}:${WEBHOOK_PASSWORD}`;
         const expectedAuth = crypto.createHash("sha256").update(credentials).digest("hex");
 
-        // Verify hash matches exactly (handles direct hash or format containing hash)
-        const isMatch = authHeader.toLowerCase() === expectedAuth.toLowerCase() ||
-                        authHeader.toLowerCase().includes(expectedAuth.toLowerCase());
+        // SECURITY: Timing-safe comparison to prevent timing attacks
+        const authBuffer = Buffer.from(authHeader.toLowerCase());
+        const expectedBuffer = Buffer.from(expectedAuth.toLowerCase());
+        const isMatch = authBuffer.length === expectedBuffer.length &&
+                        crypto.timingSafeEqual(authBuffer, expectedBuffer);
 
         if (!isMatch) {
             return res.status(401).send("Invalid Webhook Authentication Signature");

@@ -24,7 +24,7 @@ function errorHandler(err, req, res, next) {
     }
 
     // 4. Catch-All Server Crash (The Security Mask)
-    const isProduction = process.env.NODE_ENV === 'production';
+    const isProduction = process.env.NODE_ENV !== 'development';
     
     return res.status(500).json({ 
         success: false, 

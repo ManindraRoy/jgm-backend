@@ -38,11 +38,12 @@ const allowedOrigins = [
     'https://admin.jgmindustries.in',
     'https://jgm-frontend-v1.vercel.app', // Fallback Vercel URL
     'https://jgm-admin-panel.vercel.app', // Fallback Vercel URL
-    'http://localhost:3000', // For local development (remove in production)
-    'http://localhost:5173', // For local development (remove in production)
-    'http://localhost:5174' // For local development (remove in production)
-
 ];
+
+// Only allow localhost origins in development
+if (process.env.NODE_ENV !== 'production') {
+    allowedOrigins.push('http://localhost:3000', 'http://localhost:5173', 'http://localhost:5174');
+}
 
 const corsOptions = {
     origin: function(origin, callback) {
@@ -94,6 +95,11 @@ const io = new Server(server, {
 let liveUserCount = 0;
 
 io.on('connection', (socket) => {
+    // SECURITY: Basic DoS protection — cap max concurrent WebSocket connections
+    if (liveUserCount >= 500) {
+        socket.disconnect(true);
+        return;
+    }
     liveUserCount++;
     io.emit('liveUsersUpdate', liveUserCount);
 
