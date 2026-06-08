@@ -26,7 +26,7 @@ const productSchema = mongoose.Schema({
     },
     
     // Inventory & Metrics
-    countInStock: { type: Number, required: true, min: 0, max: 255 },
+    countInStock: { type: Number, required: true, min: 0 },
     rating: { type: Number, default: 0 },
     numReviews: { type: Number, default: 0 },
     isFeatured: { type: Boolean, default: false },

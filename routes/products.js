@@ -6,6 +6,7 @@
 
 const { Product } = require("../models/product");
 const { Category } = require("../models/category");
+const { Setting } = require("../models/setting");
 const express = require("express");
 const router = express.Router();
 const mongoose = require("mongoose");
@@ -96,6 +97,13 @@ router.post(`/`, uploadOptions.single("image"), async (req, res) => {
     const file = req.file;
     if (!file) return res.status(400).json({ message: "No image in the request" });
 
+    // Validate against dynamic maxStockLimit
+    const setting = await Setting.findOne();
+    const maxLimit = setting ? setting.maxStockLimit : 255;
+    if (req.body.countInStock > maxLimit) {
+        return res.status(400).json({ message: `countInStock cannot exceed the maximum limit of ${maxLimit}` });
+    }
+
     let product = new Product({
         name: req.body.name,
         description: req.body.description,
@@ -133,6 +141,13 @@ router.put("/:id", uploadOptions.single("image"), async (req, res) => {
 
     const product = await Product.findById(req.params.id);
     if (!product) return res.status(400).json({ message: "Invalid Product!" });
+
+    // Validate against dynamic maxStockLimit
+    const setting = await Setting.findOne();
+    const maxLimit = setting ? setting.maxStockLimit : 255;
+    if (req.body.countInStock > maxLimit) {
+        return res.status(400).json({ message: `countInStock cannot exceed the maximum limit of ${maxLimit}` });
+    }
 
     const file = req.file;
     let imagepath;

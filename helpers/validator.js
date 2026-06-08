@@ -79,7 +79,7 @@ const productSchema = Joi.object({
     brand: Joi.string().allow(''),
     price: Joi.number().min(0).required(),
     category: Joi.string().hex().length(24).required(), // Ensures a valid 24-character MongoDB ObjectId
-    countInStock: Joi.number().min(0).max(255).required(),
+    countInStock: Joi.number().min(0).required(),
     rating: Joi.number().min(0).max(5).allow(''),
     numReviews: Joi.number().min(0).allow(''),
     isFeatured: Joi.boolean()
