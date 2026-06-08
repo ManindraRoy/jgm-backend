@@ -43,8 +43,8 @@ router.put('/', async (req, res) => {
     try {
         const { maxStockLimit } = req.body;
         
-        if (typeof maxStockLimit !== 'number' || maxStockLimit < 0) {
-            return res.status(400).json({ message: 'Invalid max stock limit' });
+        if (typeof maxStockLimit !== 'number' || !Number.isInteger(maxStockLimit) || maxStockLimit < 0 || maxStockLimit > 1000000) {
+            return res.status(400).json({ message: 'Invalid max stock limit. Must be an integer between 0 and 1,000,000' });
         }
 
         let setting = await getOrCreateSetting();
