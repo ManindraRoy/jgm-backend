@@ -206,49 +206,83 @@ const sendInvoiceEmail = async (userEmail, order, method = 'smtp') => {
     // Create items HTML
     const itemsHtml = order.orderItems.map(item => `
         <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd;">${escapeHtml(item.product?.name || 'Product')}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: center;">${item.quantity}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">₹${(item.product?.price || 0).toLocaleString('en-IN')}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #ddd; text-align: right;">₹${((item.product?.price || 0) * item.quantity).toLocaleString('en-IN')}</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e2e8f0; color: #333;">${escapeHtml(item.product?.name || 'Product')}</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: center; color: #475569;">${item.quantity}</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #475569;">₹${(item.product?.price || 0).toLocaleString('en-IN')}</td>
+            <td style="padding: 12px 8px; border-bottom: 1px solid #e2e8f0; text-align: right; color: #333; font-weight: 500;">₹${((item.product?.price || 0) * item.quantity).toLocaleString('en-IN')}</td>
         </tr>
     `).join('');
 
     const html = `
-        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 8px;">
-            <h2 style="color: #2c3e50; border-bottom: 2px solid #eee; padding-bottom: 10px;">JGM Industries</h2>
-            <h3>Order Receipt / Invoice</h3>
-            <div style="margin-bottom: 20px;">
-                <p style="margin: 5px 0;"><strong>Order ID:</strong> ${order.id}</p>
-                <p style="margin: 5px 0;"><strong>Date:</strong> ${new Date(order.dateOrdered).toLocaleDateString()}</p>
-                <p style="margin: 5px 0;"><strong>Status:</strong> ${order.status}</p>
-                <p style="margin: 5px 0;"><strong>Tracking Number:</strong> ${order.trackingNumber || 'N/A'}</p>
-                <p style="margin: 5px 0;"><strong>Courier:</strong> ${order.courierName || 'N/A'}</p>
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);">
+            <!-- Header -->
+            <div style="background-color: #1e293b; padding: 30px 20px; text-align: center;">
+                <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 2px;">JGM INDUSTRIES</h1>
+                <p style="color: #94a3b8; margin: 5px 0 0 0; font-size: 14px;">Official Order Invoice</p>
             </div>
             
-            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                <thead>
-                    <tr style="background-color: #f8f9fa;">
-                        <th style="padding: 10px; text-align: left; border-bottom: 2px solid #ddd;">Item</th>
-                        <th style="padding: 10px; text-align: center; border-bottom: 2px solid #ddd;">Qty</th>
-                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Price</th>
-                        <th style="padding: 10px; text-align: right; border-bottom: 2px solid #ddd;">Subtotal</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${itemsHtml}
-                </tbody>
-                <tfoot>
-                    <tr>
-                        <td colspan="3" style="text-align: right; padding: 15px 10px; font-weight: bold; border-top: 2px solid #ddd;">Total Amount:</td>
-                        <td style="text-align: right; padding: 15px 10px; font-weight: bold; color: #2ecc71; border-top: 2px solid #ddd; font-size: 1.2em;">₹${(order.totalPrice || 0).toLocaleString('en-IN')}</td>
-                    </tr>
-                </tfoot>
-            </table>
+            <!-- Body -->
+            <div style="padding: 30px 20px;">
+                <p style="font-size: 16px; margin-top: 0;">Dear Customer,</p>
+                <p style="font-size: 14px; line-height: 1.6; color: #475569;">Thank you for shopping with JGM Industries. Below are the details of your recent order.</p>
+                
+                <!-- Order Details Grid -->
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; margin: 25px 0;">
+                    <table style="width: 100%; font-size: 14px; border-collapse: collapse;">
+                        <tr>
+                            <td style="padding-bottom: 8px;"><strong>Order ID:</strong></td>
+                            <td style="padding-bottom: 8px; text-align: right; color: #475569;">#${order.id}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding-bottom: 8px;"><strong>Order Date:</strong></td>
+                            <td style="padding-bottom: 8px; text-align: right; color: #475569;">${new Date(order.dateOrdered).toLocaleDateString()}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding-bottom: 8px;"><strong>Status:</strong></td>
+                            <td style="padding-bottom: 8px; text-align: right; color: #475569;"><span style="background-color: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px;">${order.status}</span></td>
+                        </tr>
+                        <tr>
+                            <td style="padding-bottom: 8px;"><strong>Courier:</strong></td>
+                            <td style="padding-bottom: 8px; text-align: right; color: #475569;">${order.courierName || 'N/A'}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding-bottom: 0;"><strong>Tracking No:</strong></td>
+                            <td style="padding-bottom: 0; text-align: right; color: #475569;">${order.trackingNumber || 'N/A'}</td>
+                        </tr>
+                    </table>
+                </div>
+                
+                <h3 style="font-size: 16px; color: #1e293b; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">Order Items</h3>
+                
+                <!-- Items Table -->
+                <table style="width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 25px;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 12px 8px; text-align: left; border-bottom: 2px solid #cbd5e1; color: #475569;">Item</th>
+                            <th style="padding: 12px 8px; text-align: center; border-bottom: 2px solid #cbd5e1; color: #475569;">Qty</th>
+                            <th style="padding: 12px 8px; text-align: right; border-bottom: 2px solid #cbd5e1; color: #475569;">Price</th>
+                            <th style="padding: 12px 8px; text-align: right; border-bottom: 2px solid #cbd5e1; color: #475569;">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${itemsHtml}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <td colspan="3" style="text-align: right; padding: 20px 8px 10px; font-weight: bold; color: #1e293b;">Total Amount Paid:</td>
+                            <td style="text-align: right; padding: 20px 8px 10px; font-weight: bold; color: #16a34a; font-size: 18px;">₹${(order.totalPrice || 0).toLocaleString('en-IN')}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
             
-            <p style="color: #7f8c8d; font-size: 0.9em; text-align: center; margin-top: 30px; border-top: 1px solid #eee; padding-top: 15px;">
-                Thank you for your business!<br>
-                For any questions regarding this invoice, please contact our support team.
-            </p>
+            <!-- Footer -->
+            <div style="background-color: #f1f5f9; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+                <p style="margin: 0; font-size: 13px; color: #64748b; line-height: 1.5;">
+                    If you have any questions regarding this invoice, please reach out to our customer support.<br/>
+                    <strong>Thank you for your business!</strong>
+                </p>
+            </div>
         </div>
     `;
 
