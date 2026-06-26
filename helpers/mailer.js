@@ -299,4 +299,46 @@ const sendInvoiceEmail = async (userEmail, order, method = 'smtp') => {
     });
 };
 
-module.exports = { sendOtpEmail, sendContactEmail, sendInvoiceEmail };
+/**
+ * Dispatches a simple notification email to the seller (jgmpayment@gmail.com) when a new order comes in.
+ * @param {Object} order - The order object.
+ * @returns {Promise<any>} A promise that resolves when the email is sent.
+ */
+const sendSellerNotificationEmail = async (order) => {
+    let toEmail = 'jgmpayment@gmail.com';
+    try {
+        const { Setting } = require('../models/setting');
+        const setting = await Setting.findOne();
+        if (setting && setting.notificationEmailId) {
+            toEmail = setting.notificationEmailId;
+        }
+    } catch (err) {
+        console.error("Failed to fetch notification email from settings", err);
+    }
+
+    const subject = `New Order Received - #${order.id || order._id}`;
+    
+    const html = `
+        <div style="font-family: Arial, sans-serif; padding: 20px;">
+            <h2>New Order Alert!</h2>
+            <p>A new order has been placed.</p>
+            <p><strong>Order ID:</strong> ${order.id || order._id}</p>
+            <p><strong>Total Price:</strong> ₹${(order.totalPrice || 0).toLocaleString('en-IN')}</p>
+            <p>Please check the admin panel for more details.</p>
+        </div>
+    `;
+
+    if (isProduction) {
+        return sendViaBrevoAPI({ to: toEmail, subject, html });
+    }
+
+    // Default to SMTP
+    return smtpTransporter.sendMail({
+        from: `"JGM Industries System" <${getFromAddress()}>`,
+        to: toEmail,
+        subject,
+        html
+    });
+};
+
+module.exports = { sendOtpEmail, sendContactEmail, sendInvoiceEmail, sendSellerNotificationEmail };

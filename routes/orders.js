@@ -9,7 +9,7 @@ const mongoose = require("mongoose");
 const orderRepository = require("../repositories/OrderRepository");
 const { Product } = require("../models/product"); // Still needed for stock check in route
 const { orderSchema } = require("../helpers/validator");
-const { sendInvoiceEmail } = require("../helpers/mailer");
+const { sendInvoiceEmail, sendSellerNotificationEmail } = require("../helpers/mailer");
 
 /**
  * @route   GET /api/v1/orders/
@@ -98,6 +98,13 @@ router.post("/", async (req, res) => {
 
         await session.commitTransaction();
         session.endSession();
+
+        try {
+            await sendSellerNotificationEmail(order);
+        } catch (emailErr) {
+            console.error("Failed to send seller notification:", emailErr);
+        }
+
         res.send(order);
     } catch (err) {
         console.error("❌ Order Creation Error:", err);

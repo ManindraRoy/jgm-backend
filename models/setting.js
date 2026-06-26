@@ -5,6 +5,10 @@ const settingSchema = mongoose.Schema({
         type: Number, 
         required: true, 
         default: 255 
+    },
+    notificationEmailId: {
+        type: String,
+        default: 'jgmpayment@gmail.com'
     }
 });
 
