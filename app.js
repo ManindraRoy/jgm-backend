@@ -34,8 +34,6 @@ app.set('trust proxy', 1);
 
 // --- STRICT PRODUCTION CORS ---
 const allowedOrigins = [
-    'http://localhost:5173/',
-    'https://localhost:5173/',
     'https://jgmindustries.in',
     'https://www.jgmindustries.in', 
     'https://admin.jgmindustries.in',
